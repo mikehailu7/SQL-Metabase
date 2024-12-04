@@ -1,0 +1,32 @@
+SELECT
+  "CustomerLoan"."id" AS "Loan id",    
+  "CustomerBankFirst - Customer"."branch" AS "Branch",
+  "Customer"."full_name" AS "Borrower Name",
+CASE 
+    WHEN "CustomerLoan"."loan_product_code" = 'MIR' THEN 'Micro'
+    WHEN "CustomerLoan"."loan_product_code" = 'DIR' THEN 'Nano'
+    ELSE NULL 
+END AS "Loan Type",
+"CustomerLoan"."disbursed_amount" AS "Loan Amount",
+"CustomerLoan"."credit_score" AS "Credit Score",
+"CustomerBusiness"."line_of_business" As "line_of_business",
+"CustomerBusiness"."annual_income" / 12 AS "monthly_income",
+"CustomerBusiness"."annual_profit" / 12 AS "Net Income",
+
+CASE 
+    WHEN "CustomerLoan"."loan_product_name" = 'Miran' THEN ("CustomerLoan"."disbursed_amount"/("CustomerBusiness"."annual_income" / 12)/2) *100
+    WHEN "CustomerLoan"."loan_product_name" = 'Diber' THEN ("CustomerLoan"."disbursed_amount"/ ("CustomerBusiness"."annual_income" / 12)) *100 
+    ELSE NULL
+END AS "Debt-to-income Ratio"
+
+FROM
+  "public"."CustomerLoan"
+LEFT JOIN "public"."Customer" AS "Customer" ON "CustomerLoan"."customer_id" = "Customer"."id" 
+LEFT JOIN "public"."CustomerBankFirst" AS "CustomerBankFirst - Customer" ON "public"."CustomerLoan"."customer_id" = "CustomerBankFirst - Customer"."customer_id"
+LEFT JOIN "public"."InpaymentLatest" AS "InPayment" ON "CustomerLoan"."id" = "InPayment"."loan_id"
+LEFT JOIN "public"."PromiseLatest" AS "Promise" ON "CustomerLoan"."id" = "Promise"."loan_id"
+LEFT JOIN "public"."CustomerBusinessLatest" AS "CustomerBusiness" ON "Customer"."id" = "CustomerBusiness"."customer_id"
+  
+  WHERE "CustomerLoan"."status" IN ('ACTIVE','CLOSED') AND "CustomerLoan"."loan_product_name" IN ('MIRAN', 'DIBER') AND {{loan_product_name}} AND ("CustomerLoan"."disbursement_date" BETWEEN {{date_from}} AND {{date_to}})
+ORDER BY
+  "CustomerBankFirst - Customer"."branch" ASC;
