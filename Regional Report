@@ -1,0 +1,80 @@
+WITH 
+cte_disbursed AS (
+  SELECT
+    "CustomerLoan"."id" AS loan_id,
+    "CustomerLoan"."loan_product_code",
+    "CustomerAddress"."region",
+    "CustomerLoan"."disbursement_date",
+    SUM("CustomerLoan"."disbursed_amount") AS total_disbursed_amount
+  FROM
+    "public"."CustomerLoan"
+  LEFT JOIN 
+    "public"."CustomerAddress" ON "CustomerLoan"."customer_id" = "CustomerAddress"."customer_id"
+  WHERE
+    "CustomerLoan"."status" IN ('ACTIVE', 'CLOSED')
+    AND "CustomerLoan"."loan_product_code" IN ('MNL', 'MFL')
+  GROUP BY
+    "CustomerLoan"."id", 
+    "CustomerLoan"."loan_product_code",
+    "CustomerAddress"."region",
+    "CustomerLoan"."disbursement_date"
+),
+
+cte_loan_payments AS (
+  SELECT
+    "LoanPayment"."loan_id",
+    "LoanPayment"."collection_date",
+    SUM("LoanPayment"."principal_amount") AS total_principal_payment
+  FROM
+    "public"."LoanPayment"
+  LEFT JOIN
+    "public"."CustomerLoan" ON "LoanPayment"."loan_id" = "CustomerLoan"."id"
+  WHERE
+    "CustomerLoan"."expiry_date" > "LoanPayment"."collection_date" AND
+    "CustomerLoan"."status" IN ('ACTIVE', 'CLOSED') AND 
+    "CustomerLoan"."loan_product_code" IN ('MNL', 'MFL')
+
+  GROUP BY
+    "LoanPayment"."loan_id",
+    "LoanPayment"."collection_date"
+)
+
+
+SELECT
+  cte_disbursed.region AS "CustomerAddress__region",
+  cte_disbursed.loan_product_code,
+  "InpaymentLatest"."nbe_loan_status" AS "InpaymentLatest__nbe_loan_status",
+  SUM(cte_disbursed.total_disbursed_amount) AS "Total Disbursed Amount",
+  COUNT(*) AS "Total Loans Accessed",
+  AVG(cte_disbursed.total_disbursed_amount) AS "Average Disbursed Amount",
+  (COUNT(*) * 100.0 / SUM(COUNT(*)) OVER (
+    PARTITION BY 
+      cte_disbursed.region, 
+      cte_disbursed.loan_product_code
+  )) AS "nbe_status_percentage",
+  (
+    CAST(SUM(cte_loan_payments.total_principal_payment) AS float) / CASE
+      WHEN SUM(cte_disbursed.total_disbursed_amount) = 0 THEN NULL
+      ELSE SUM(cte_disbursed.total_disbursed_amount)
+    END
+  ) * 100 AS "Repayment Rate"
+FROM
+  cte_disbursed
+LEFT JOIN 
+  cte_loan_payments ON cte_disbursed.loan_id = cte_loan_payments.loan_id
+LEFT JOIN 
+  "public"."InpaymentLatest" ON cte_disbursed.loan_id = "InpaymentLatest"."loan_id"
+
+WHERE 
+  GREATEST(cte_disbursed.disbursement_date, cte_loan_payments.collection_date) >= {{start_date}}
+  AND LEAST(cte_disbursed.disbursement_date, cte_loan_payments.collection_date) <= {{end_date}} 
+  
+GROUP BY
+  cte_disbursed.region,
+  cte_disbursed.loan_product_code,
+  "InpaymentLatest"."nbe_loan_status"
+ORDER BY
+  cte_disbursed.region ASC,
+  cte_disbursed.loan_product_code ASC,
+  "InpaymentLatest"."nbe_loan_status" ASC;
+
