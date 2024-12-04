@@ -1,0 +1,113 @@
+WITH DailyDisbursed AS (
+    SELECT
+        DATE("CustomerLoan"."disbursement_date") AS "disbursement_date",
+        "CustomerLoan"."loan_product_name",
+        COALESCE(SUM("CustomerLoan"."disbursed_amount"), 0) AS "daily_disbursed_amount"
+    FROM
+        "public"."CustomerLoan"
+    WHERE
+        "CustomerLoan"."status" IN ('ACTIVE', 'CLOSED')
+    GROUP BY
+        DATE("CustomerLoan"."disbursement_date"), "CustomerLoan"."loan_product_name"
+),
+AllDates AS (
+    SELECT DISTINCT DATE("disbursement_date") AS "date"
+    FROM "CustomerLoan"
+    UNION
+    SELECT DISTINCT DATE("collection_date") AS "date"
+    FROM "LoanPayment"
+),
+ProductDates AS (
+    SELECT 
+        D."date", 
+        P."loan_product_name"
+    FROM 
+        AllDates D
+    CROSS JOIN 
+        (SELECT DISTINCT "loan_product_name" FROM "CustomerLoan") P
+),
+FilledDailyDisbursed AS (
+    SELECT 
+        PD."date" AS "disbursement_date",
+        PD."loan_product_name",
+        COALESCE(D."daily_disbursed_amount", 0) AS "daily_disbursed_amount"
+    FROM 
+        ProductDates PD
+    LEFT JOIN 
+        DailyDisbursed D 
+    ON PD."date" = D."disbursement_date"
+    AND PD."loan_product_name" = D."loan_product_name"
+),
+CumulativeDisbursed AS (
+    SELECT
+        "disbursement_date",
+        "loan_product_name",
+        "daily_disbursed_amount",
+        SUM("daily_disbursed_amount") OVER (PARTITION BY "loan_product_name" ORDER BY "disbursement_date") AS "cumulative_disbursed_amount"
+    FROM
+        FilledDailyDisbursed
+),
+DailyLoanPayment AS (
+    SELECT
+        DATE("LoanPayment"."collection_date") AS "collection_date",
+        "CustomerLoan"."loan_product_name",
+        COALESCE(SUM("LoanPayment"."principal_amount"), 0) AS "daily_loan_payment"
+    FROM
+        "public"."LoanPayment"
+    JOIN
+        "public"."CustomerLoan"
+        ON "LoanPayment"."loan_id" = "CustomerLoan"."loan_id"
+    WHERE
+        "CustomerLoan"."status" IN ('ACTIVE', 'CLOSED')
+    GROUP BY
+        DATE("LoanPayment"."collection_date"), "CustomerLoan"."loan_product_name"
+),
+FilledDailyLoanPayment AS (
+    SELECT 
+        PD."date" AS "collection_date",
+        PD."loan_product_name",
+        COALESCE(P."daily_loan_payment", 0) AS "daily_loan_payment"
+    FROM 
+        ProductDates PD
+    LEFT JOIN 
+        DailyLoanPayment P 
+    ON PD."date" = P."collection_date"
+    AND PD."loan_product_name" = P."loan_product_name"
+),
+CumulativeLoanPayment AS (
+    SELECT
+        "collection_date",
+        "loan_product_name",
+        "daily_loan_payment",
+        SUM("daily_loan_payment") OVER (PARTITION BY "loan_product_name" ORDER BY "collection_date") AS "cumulative_loan_payment"
+    FROM
+        FilledDailyLoanPayment
+)
+SELECT
+    COALESCE(D."disbursement_date", P."collection_date") AS "date",
+    COALESCE(D."loan_product_name", P."loan_product_name") AS "loan_product_name",
+    D."daily_disbursed_amount",
+    D."cumulative_disbursed_amount",
+    P."daily_loan_payment",
+    P."cumulative_loan_payment",
+    CASE 
+        WHEN D."daily_disbursed_amount" > 0 AND P."daily_loan_payment" > 0 THEN 
+            COALESCE(D."cumulative_disbursed_amount", 0) - COALESCE(P."cumulative_loan_payment", 0)
+        WHEN D."daily_disbursed_amount" > 0 THEN
+            COALESCE(D."cumulative_disbursed_amount", 0)
+        WHEN P."daily_loan_payment" > 0 THEN
+            COALESCE(D."cumulative_disbursed_amount", 0) - COALESCE(P."cumulative_loan_payment", 0)
+        ELSE 
+            COALESCE(D."cumulative_disbursed_amount", 0)
+    END AS "cumulative_outstanding"
+FROM
+    CumulativeDisbursed D
+FULL OUTER JOIN
+    CumulativeLoanPayment P
+    ON D."loan_product_name" = P."loan_product_name"
+    AND D."disbursement_date" = P."collection_date"
+WHERE
+    (D."daily_disbursed_amount" > 0 OR P."daily_loan_payment" > 0) 
+ORDER BY
+    COALESCE(D."loan_product_name", P."loan_product_name"), 
+    "date";
