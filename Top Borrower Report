@@ -1,0 +1,86 @@
+WITH LoanCounts AS (
+    SELECT 
+        "customer_id", 
+        "loan_product_code", 
+        COUNT("principal") AS "loan_count",
+        SUM("principal") AS "total_amount",
+        MAX("disbursed_amount") AS "Last_Loan_size",
+        MAX("disbursement_date") AS "Last_Loan_disbursement_date"
+    FROM "public"."CustomerLoan"
+    WHERE "status" IN ('ACTIVE','CLOSED')
+    GROUP BY "customer_id", "loan_product_code"
+)
+SELECT 
+    "Customer"."id" AS "Customer_id",
+    "CustomerBankFirst"."branch" AS "Branch", 
+    CASE  
+        WHEN "CustomerBusiness"."association_type" = 'INDIVIDUAL' THEN "Customer"."full_name" 
+        WHEN "CustomerBusiness"."association_type" = 'GROUP' THEN "CustomerBusiness"."business_name"
+        ELSE "Customer"."full_name"
+    END AS "Customer Name", 
+    "Customer"."phone" AS "Phone Number",
+    CASE
+        WHEN "CustomerLoan"."disbursed_account_number" IS NOT NULL AND "CustomerLoan"."disbursed_account_number" != ''
+        THEN "CustomerLoan"."disbursed_account_number"
+        ELSE "CustomerBankFirst"."saving_account"
+    END AS "Saving Account",
+    "CustomerBusiness"."tin" AS "Business Tin Number",
+    "CustomerAddress"."region" AS "Customer Region",
+    "CustomerAddress"."city" AS "Customer City",
+    "CustomerAddress"."subcity_zone" AS "Customer Subcity/Zone",
+    "CustomerAddress"."woreda" AS "Customer Woreda",
+    "BusinessAddress"."region" AS "Business Region",
+    "BusinessAddress"."city" AS "Business City",
+    "BusinessAddress"."subcity_zone" AS "Business Subcity/Zone",
+    "BusinessAddress"."woreda" AS "Business Woreda",
+    "CustomerBusiness"."business_sector" AS "Business Sector",
+    "CustomerBusiness"."line_of_business" AS "Line of Business",
+    "CustomerLoan"."loan_product_code" AS "Product type",
+    
+    LoanCounts."loan_count" AS "Number Of Loans Accessed",
+    LoanCounts."total_amount" AS "Total Amount Accessed",
+    LoanCounts."Last_Loan_size" AS "Last Loan Size",
+    LoanCounts."Last_Loan_disbursement_date" AS "Last Loan disbursement date", 
+   
+    "Customer"."loanstatus" AS "Current Loan status"
+    
+FROM "public"."Customer"
+LEFT JOIN "public"."CustomerLoan" 
+    ON "Customer"."id" = "CustomerLoan"."customer_id"
+LEFT JOIN "public"."OperationUser" AS "OperationUser" 
+    ON "CustomerLoan"."officer_id" = "OperationUser"."id"
+LEFT JOIN "public"."CustomerType" AS "WhiteList" 
+    ON "CustomerLoan"."customer_id" = "WhiteList"."customerid"
+LEFT JOIN "public"."CustomerEducation" 
+    ON "CustomerLoan"."customer_id" = "CustomerEducation"."customer_id"
+LEFT JOIN "public"."CustomerAddress" 
+    ON "CustomerLoan"."customer_id" = "CustomerAddress"."customer_id"
+LEFT JOIN "CustomerBusinessLatest" AS "CustomerBusiness" 
+    ON "CustomerLoan"."customer_id" = "CustomerBusiness"."customer_id" 
+LEFT JOIN "BusinessAddressLatest" AS "BusinessAddress" 
+    ON "CustomerBusiness"."id" = "BusinessAddress"."business_id"
+LEFT JOIN "CustomerBankFirst" 
+    ON "CustomerBankFirst"."customer_id" = "CustomerLoan"."customer_id"
+LEFT JOIN "public"."OperationUser" AS "OperationUserLoan" 
+    ON "CustomerLoan"."officer_id" = "OperationUserLoan"."id"
+LEFT JOIN "public"."OperationUser" AS "OperationUserCustomer" 
+    ON "Customer"."officer_id" = "OperationUserCustomer"."id"
+LEFT JOIN LoanCounts 
+    ON "Customer"."id" = LoanCounts."customer_id" AND "CustomerLoan"."loan_product_code" = LoanCounts."loan_product_code"
+
+WHERE {{LoanProductCode}} 
+AND "CustomerLoan"."status" IN ('ACTIVE', 'CLOSED')
+
+GROUP BY "Customer"."id", "CustomerBankFirst"."branch", "CustomerBusiness"."association_type",
+         "CustomerBusiness"."business_name", "Customer"."full_name", "Customer"."phone",
+         "CustomerLoan"."disbursed_account_number", "CustomerBankFirst"."saving_account", 
+         "CustomerBusiness"."tin", "CustomerAddress"."region", "CustomerAddress"."city", 
+         "CustomerAddress"."subcity_zone", "CustomerAddress"."woreda", "BusinessAddress"."region", 
+         "BusinessAddress"."city", "BusinessAddress"."subcity_zone", "BusinessAddress"."woreda", 
+         "CustomerBusiness"."business_sector", "CustomerBusiness"."line_of_business", 
+         LoanCounts."loan_count", LoanCounts."total_amount", LoanCounts."Last_Loan_size", 
+         LoanCounts."Last_Loan_disbursement_date", "Customer"."loanstatus", "CustomerLoan"."loan_product_code",
+         "CustomerLoan"."loan_product_name"
+
+ORDER BY LoanCounts."total_amount" DESC
+LIMIT 5000 OFFSET {{Page}};
