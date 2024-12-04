@@ -1,0 +1,88 @@
+SELECT 
+    row_number() OVER (ORDER BY "public"."Customer"."id") AS "S. No.",
+    "public"."CustomerBank"."branch" AS "Branch", 
+    "public"."CustomerBank"."customer_number" AS "Customer Number",
+    "CustomerLoan"."loan_id" AS "Loan Id",
+    CASE  
+        WHEN "CustomerBusiness"."association_type" = 'INDIVIDUAL' THEN "public"."Customer"."full_name" 
+        WHEN "CustomerBusiness"."association_type" = 'GROUP' THEN "CustomerBusiness"."business_name"
+        ELSE "public"."Customer"."full_name"
+    END AS "Customer Name", 
+    
+    "public"."Customer"."phone" AS "Phone Number", "CustomerBusiness"."tin" AS "Business Tin Number", 
+    "CustomerBusiness"."association_type" AS "Association Type",
+    
+    CASE 
+        WHEN "public"."CustomerLoan"."loan_product_name" != '' OR NULL
+        THEN 
+            "public"."CustomerLoan"."loan_product_name"
+        ELSE 
+            "public"."Customer"."loan_product_name"
+    END AS "Loan Product", 
+    -- "public"."CustomerLoan"."loan_product_group" 
+    'Business Loan' AS "Product Group",
+    
+   "BusinessAddress"."region" AS "Bussiness Region",
+   "BusinessAddress"."city" AS "Bussiness City",
+   "BusinessAddress"."subcity_zone" AS "Business Subcity/Zone",
+   "BusinessAddress"."woreda" AS "Business Woreda",
+    COALESCE("InPayment"."outstanding_total", 0) AS "Outstanding Balance",
+       
+     case
+        when
+            COALESCE("InPayment"."no_days_in_arrears", 0)  between 1 and 29
+        then
+            'Pass'
+        when
+            COALESCE("InPayment"."no_days_in_arrears", 0)  between 30 and 89
+        then
+            'Special Mention'
+        when
+            COALESCE("InPayment"."no_days_in_arrears", 0)  between 90 and 179
+        then
+            'Substandard'
+        -- - 
+        when
+            COALESCE("InPayment"."no_days_in_arrears", 0)  between 180 and 365
+        then
+            'Doubtful'
+        when
+            COALESCE("InPayment"."no_days_in_arrears", 0)  > 365
+        then
+            'Loss'
+        else
+            'Current'
+    end as "Loan Status",
+    
+    "public"."CustomerLoan"."principal" AS "Principal",
+    "public"."CustomerLoan"."created_at" AS "Loan Creation Date",
+    "public"."CustomerLoan"."maturity_date" AS "Loan Maturity date",
+
+    "InPayment"."no_days_in_arrears" AS "Number of Days in Arrears",
+    "InPayment"."due_principal" AS "Principal Due Amount",
+    
+    "public"."CustomerLoan"."status" AS "Status",
+    
+    
+    "InPayment"."outstanding_principal" AS "Remaining Principal",
+    "Promise"."paid" AS "Paid Amount", 
+    "Promise"."call_times" AS "Call Times",
+    to_char("Promise"."call_date", 'yyyymmdd') AS "Call Date",
+    "Promise"."call_response" AS "Call Response",
+    to_char("Promise"."promise_to_pay_date", 'yyyymmdd') AS "Promise To Pay Date", 
+    "Promise"."promise_amount_to_pay" AS "Promised Amount To Pay",
+    "public"."OperationUser"."full_name" AS "Debt Collection Officer", "Promise"."action_taken" AS "Action Taken"
+    
+FROM "public"."CustomerLoan"
+INNER JOIN "public"."Customer" ON "public"."Customer"."id" = "CustomerLoan"."customer_id"
+LEFT JOIN "public"."CustomerAddress" ON "public"."Customer"."id" = "CustomerAddress"."customer_id"
+LEFT JOIN "public"."CustomerBusinessLatest" AS "CustomerBusiness" ON "public"."Customer"."id" = "CustomerBusiness"."customer_id" 
+LEFT JOIN "public"."BusinessAddressLatest" AS "BusinessAddress" ON "CustomerBusiness"."id" = "BusinessAddress"."business_id"
+LEFT JOIN "public"."CustomerBank" ON "Customer"."id" = "CustomerBank"."customer_id" AND "CustomerBank"."saving_account" = "CustomerLoan"."disbursed_account_number" AND "CustomerBank"."customer_id" = "CustomerLoan"."customer_id"
+LEFT JOIN "InpaymentLatest" AS "InPayment" ON "CustomerLoan"."id" = "InPayment"."loan_id" AND "InPayment"."no_days_in_arrears" > 0
+LEFT JOIN "public"."CollectionAssignment" ON "CustomerLoan"."id" = "CollectionAssignment"."loan_id" AND "CustomerLoan"."status" != 'CLOSED' 
+LEFT JOIN "PromiseLatest" AS "Promise"  ON "CustomerLoan"."id" = "Promise"."loan_id"
+LEFT JOIN "public"."OperationUser" on "CollectionAssignment"."officer_id" = "OperationUser"."id"
+WHERE ("Promise"."call_date" = {{call_date}}) AND {{loan_product_name}} 
+ORDER BY "S. No." ASC
+LIMIT {{rows}} OFFSET {{Page}}
