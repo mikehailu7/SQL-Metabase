@@ -1,0 +1,139 @@
+SELECT  
+    row_number() OVER (ORDER BY "public"."Customer"."created_at") AS "S. No.",
+    "public"."CustomerBank"."branch" AS "Branch", 
+    CASE
+        WHEN "public"."CustomerBank"."customer_number" != '' OR  NULL
+        THEN "public"."CustomerBank"."customer_number"
+        ELSE "public"."CustomerBankFirst"."customer_number"
+    END AS  "Customer Number",
+    
+    "CustomerLoan"."loan_id" AS "Loan Id",
+    CASE  
+        WHEN "CustomerBusiness"."association_type" = 'INDIVIDUAL' THEN "public"."Customer"."full_name" 
+        WHEN "CustomerBusiness"."association_type" = 'GROUP' THEN "CustomerBusiness"."business_name"
+        ELSE "public"."Customer"."full_name"
+    END AS "Customer Name", 
+    to_char("public"."Customer"."birth_date", 'yyyymmdd') AS "Birth Date",
+    extract(year  from  age(current_date, "Customer"."birth_date")) as "Age",
+    "public"."Customer"."gender" AS "Sex",
+    "public"."CustomerEducation"."level" AS "Education Level",
+    "public"."Customer"."phone" AS "Phone Number",
+    
+    "CustomerAddress"."region" AS "Customer Region",
+    "CustomerAddress"."city" AS "Customer City",
+    "CustomerAddress"."subcity_zone" AS "Customer Subcity/Zone",
+    "CustomerAddress"."woreda" AS "Customer Woreda",
+    
+    "BusinessAddress"."region" AS "Bussiness Region",
+    "BusinessAddress"."city" AS "Bussiness City",
+    "BusinessAddress"."subcity_zone" AS "Business Subcity/Zone",
+    "BusinessAddress"."woreda" AS "Business Woreda",
+     case
+        when
+            COALESCE("InPayment"."no_days_in_arrears", 0)  between 1 and 29
+        then
+            'Pass'
+        when
+            COALESCE("InPayment"."no_days_in_arrears", 0)  between 30 and 89
+        then
+            'Special Mention'
+        when
+            COALESCE("InPayment"."no_days_in_arrears", 0)  between 90 and 179
+        then
+            'Substandard'
+        -- - 
+        when
+            COALESCE("InPayment"."no_days_in_arrears", 0)  between 180 and 365
+        then
+            'Doubtful'
+        when
+            COALESCE("InPayment"."no_days_in_arrears", 0)  > 365
+        then
+            'Loss'
+        else
+            'Current'
+    end as "Loan Status",
+    
+        CASE
+        WHEN "public"."CustomerLoan"."disbursed_account_number" != '' OR  NULL
+        THEN "public"."CustomerLoan"."disbursed_account_number"
+        ELSE "public"."CustomerBankFirst"."saving_account"
+    END AS  "Saving Account",
+    "CustomerBusiness"."tin" AS "Business Tin Number",
+    "CustomerBusiness"."association_type" AS "Association Type",
+    case
+        when
+            "WhiteList"."acquisition" is null
+        then
+            'Self Registered'
+        else
+            "WhiteList"."acquisition"
+    end as
+        "Customer Type",
+    CASE
+        WHEN
+            "CustomerLoan"."status" is null
+        THEN
+            "Customer"."customer_account_current_stage"
+        ELSE
+            "CustomerLoan"."status" 
+    END AS "Application Status",
+     CASE 
+        WHEN "public"."CustomerLoan"."loan_product_name" != '' OR NULL
+        THEN 
+            "public"."CustomerLoan"."loan_product_name"
+        ELSE 
+            "public"."Customer"."loan_product_name"
+    END AS "Michu Loan Product", 
+    -- "public"."CustomerLoan"."loan_product_group" 
+    'Business Loan' AS "Product Group",
+
+    COALESCE("CustomerLoan"."approved_amount", 0) AS "Approved Amount", 
+    to_char("CustomerLoan"."expiry_date", 'yyyymmdd') AS "Maturity Date",
+    COALESCE("CustomerLoan"."loan_terms", '0') AS "Loan Terms", 
+    CASE
+        WHEN
+            "public"."CustomerLoan"."loan_approval_date" is NULL
+        THEN 
+            to_char("public"."CustomerLoan"."disbursement_date", 'yyyymmdd')
+        ELSE
+            to_char("public"."CustomerLoan"."loan_approval_date", 'yyyymmdd')
+    END AS "Loan Approval Date",
+    COALESCE("OperationUser"."full_name", 'N/A') AS "Loan Officer",
+    COALESCE("CustomerBusiness"."manager_tin", 'N/A') AS "Manager TIN",
+    "CustomerBusiness"."business_registered_date" AS "Business Start Date",
+    CONCAT ("BusinessAddress"."region", ' ',"BusinessAddress"."subcity_zone") AS "Business Address",
+    COALESCE("CustomerBusiness"."starting_number_of_employees", 0) AS "Starting Number of Employees",
+    "CustomerBusiness"."number_of_employees" AS "Current Number of Employees", "CustomerBusiness"."business_sector" AS "Business Sector",
+    "CustomerBusiness"."line_of_business" AS "Line of Business", "CustomerBusiness"."initial_capital" AS "Initial Capital",
+    "CustomerBusiness"."current_capital" AS "Current Capital", "CustomerBusiness"."annual_income" AS "Annual Income",
+    "CustomerBusiness"."annual_profit" AS "Annual Profit", "LoanFeedback"."rejection_reason" AS "Rejection Reason",
+    
+    "OperationUserLoan"."full_name" as "Approved By",
+    "OperationUserCustomer"."full_name" as "Current Officer"
+    
+FROM "public"."CustomerLoan"
+LEFT JOIN "public"."OperationUser" AS "OperationUser" ON "CustomerLoan"."officer_id" = "OperationUser"."id"
+LEFT JOIN "public"."CustomerType" AS "WhiteList" ON "CustomerLoan"."customer_id" = "WhiteList"."customerid"
+LEFT JOIN "public"."CustomerEducation" ON "CustomerLoan"."customer_id" = "CustomerEducation"."customer_id"
+LEFT JOIN "public"."CustomerAddress" ON "public"."CustomerLoan"."customer_id" = "CustomerAddress"."customer_id"
+LEFT JOIN "CustomerBusinessLatest" AS "CustomerBusiness" ON "public"."CustomerLoan"."customer_id" = "CustomerBusiness"."customer_id" 
+LEFT JOIN "BusinessAddressLatest" AS "BusinessAddress" ON "CustomerBusiness"."id" = "BusinessAddress"."business_id"
+LEFT JOIN "CustomerBankFirst" ON "CustomerBankFirst"."customer_id" = "CustomerLoan"."customer_id"
+LEFT JOIN "public"."Customer" ON "Customer"."id" = "CustomerLoan"."customer_id"
+LEFT JOIN "InpaymentLatest" AS "InPayment" ON "CustomerLoan"."id" = "InPayment"."loan_id" AND "InPayment"."no_days_in_arrears" > 0
+LEFT JOIN "public"."CustomerBank" ON "public"."CustomerLoan"."customer_id" = "CustomerBank"."customer_id" AND  "CustomerBank"."id" = "CustomerLoan"."disbursed_account_number"
+LEFT JOIN "public"."OperationUser" AS "OperationUserLoan" ON "CustomerLoan"."officer_id"= "OperationUserLoan"."id"
+LEFT JOIN "public"."OperationUser" AS "OperationUserCustomer" ON "Customer"."officer_id"= "OperationUserCustomer"."id"
+
+LEFT JOIN (
+    SELECT
+        STRING_AGG("LoanFeedback"."reason", ', ') AS "rejection_reason",
+        "LoanFeedback"."loan_id"
+    FROM "public"."LoanFeedback"
+    GROUP BY "LoanFeedback"."loan_id"
+) AS "LoanFeedback" ON "CustomerLoan"."id" = "LoanFeedback"."loan_id" AND "CustomerLoan"."force_closed_status" = 'False'
+
+WHERE {{LoanProductName}}
+ORDER BY "S. No." ASC
+LIMIT {{rows}} OFFSET {{Page}}
