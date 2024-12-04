@@ -1,0 +1,83 @@
+SELECT 
+    'Ayu' AS "Product Type", 
+    
+    (SELECT SUM(principal_amount + interest_amount + penalty_amount) FROM "LoanPayment" LEFT JOIN "public"."CustomerLoan" ON "public"."LoanPayment"."loan_id" = "CustomerLoan"."id"  
+    WHERE "CustomerLoan"."loan_product_name" = 'ayu' AND DATE("LoanPayment"."collection_date") BETWEEN {{date_from}} AND {{date_to}} ) AS "Total Amount Collected",
+    
+    (SELECT COUNT(*) FROM "LoanPayment" LEFT JOIN "public"."CustomerLoan" ON "public"."LoanPayment"."loan_id" = "CustomerLoan"."id"  
+    WHERE "CustomerLoan"."loan_product_name" = 'ayu' AND "LoanPayment"."reason"='Loan Repayment' AND DATE("LoanPayment"."collection_date") BETWEEN {{date_from}} AND {{date_to}} ) AS "Accounts Repaid By Customers",
+    
+    (SELECT SUM(principal_amount + interest_amount + penalty_amount) FROM "LoanPayment" LEFT JOIN "public"."CustomerLoan" ON "public"."LoanPayment"."loan_id" = "CustomerLoan"."id"  
+    WHERE "CustomerLoan"."loan_product_name" = 'ayu' AND "LoanPayment"."reason"='Loan Repayment' AND DATE("LoanPayment"."collection_date") BETWEEN {{date_from}} AND {{date_to}} ) AS "Amount Repaid By Customers",
+
+    (SELECT COUNT(*) FROM "LoanPayment" LEFT JOIN "public"."CustomerLoan" ON "public"."LoanPayment"."loan_id" = "CustomerLoan"."id"  
+    WHERE "CustomerLoan"."loan_product_name" = 'ayu' AND "LoanPayment"."reason"='Loan Repayment By Officer' AND DATE("LoanPayment"."collection_date") BETWEEN {{date_from}} AND {{date_to}} ) AS "Accounts Repaid By Officers",
+    
+    (SELECT SUM(principal_amount + interest_amount + penalty_amount) FROM "LoanPayment" LEFT JOIN "public"."CustomerLoan" ON "public"."LoanPayment"."loan_id" = "CustomerLoan"."id"  
+    WHERE "CustomerLoan"."loan_product_name" = 'ayu' AND "LoanPayment"."reason"='Loan Repayment By Officer' AND DATE("LoanPayment"."collection_date") BETWEEN {{date_from}} AND {{date_to}} ) AS "Amount Repaid By Officers",
+
+    (SELECT COUNT(*) FROM "LoanPayment" LEFT JOIN "public"."CustomerLoan" ON "public"."LoanPayment"."loan_id" = "CustomerLoan"."id"  
+    WHERE "CustomerLoan"."loan_product_name" = 'ayu' AND "LoanPayment"."reason"='Loan Auto Repayment' AND DATE("LoanPayment"."collection_date") BETWEEN {{date_from}} AND {{date_to}} ) AS "Accounts Repaid By Auto Repayments",
+    
+    (SELECT SUM(principal_amount + interest_amount + penalty_amount) FROM "LoanPayment" LEFT JOIN "public"."CustomerLoan" ON "public"."LoanPayment"."loan_id" = "CustomerLoan"."id"  
+    WHERE "CustomerLoan"."loan_product_name" = 'ayu' AND "LoanPayment"."reason"='Loan Auto Repayment' AND DATE("LoanPayment"."collection_date") BETWEEN {{date_from}} AND {{date_to}} ) AS "Amount Repaid By Auto Repayments"
+
+
+
+UNION
+
+SELECT 
+    'Abi' AS "Product Type",
+    
+    (SELECT SUM(principal_amount + interest_amount + penalty_amount) FROM "LoanPayment" LEFT JOIN "public"."CustomerLoan" ON "public"."LoanPayment"."loan_id" = "CustomerLoan"."id"  
+    WHERE "CustomerLoan"."loan_product_name" = 'abi' AND DATE("LoanPayment"."collection_date") BETWEEN {{date_from}} AND {{date_to}} ) AS "Total Amount Collected",
+    
+    (SELECT COUNT(*) FROM "LoanPayment" LEFT JOIN "public"."CustomerLoan" ON "public"."LoanPayment"."loan_id" = "CustomerLoan"."id"  
+    WHERE "CustomerLoan"."loan_product_name" = 'abi' AND "LoanPayment"."reason"='Loan Repayment' AND DATE("LoanPayment"."collection_date") BETWEEN {{date_from}} AND {{date_to}} ) AS "Accounts Repaid By Customers",
+    
+    (SELECT SUM(principal_amount + interest_amount + penalty_amount) FROM "LoanPayment" LEFT JOIN "public"."CustomerLoan" ON "public"."LoanPayment"."loan_id" = "CustomerLoan"."id"  
+    WHERE "CustomerLoan"."loan_product_name" = 'abi' AND "LoanPayment"."reason"='Loan Repayment' AND DATE("LoanPayment"."collection_date") BETWEEN {{date_from}} AND {{date_to}} ) AS "Amount Repaid By Customers",
+
+    (SELECT COUNT(*) FROM "LoanPayment" LEFT JOIN "public"."CustomerLoan" ON "public"."LoanPayment"."loan_id" = "CustomerLoan"."id"  
+    WHERE "CustomerLoan"."loan_product_name" = 'abi' AND "LoanPayment"."reason"='Loan Repayment By Officer' AND DATE("LoanPayment"."collection_date") BETWEEN {{date_from}} AND {{date_to}} ) AS "Accounts Repaid By Officers",
+    
+    (SELECT SUM(principal_amount + interest_amount + penalty_amount) FROM "LoanPayment" LEFT JOIN "public"."CustomerLoan" ON "public"."LoanPayment"."loan_id" = "CustomerLoan"."id"  
+    WHERE "CustomerLoan"."loan_product_name" = 'abi' AND "LoanPayment"."reason"='Loan Repayment By Officer' AND DATE("LoanPayment"."collection_date") BETWEEN {{date_from}} AND {{date_to}} ) AS "Amount Repaid By Officers",
+
+    (SELECT COUNT(*) FROM "LoanPayment" LEFT JOIN "public"."CustomerLoan" ON "public"."LoanPayment"."loan_id" = "CustomerLoan"."id"  
+    WHERE "CustomerLoan"."loan_product_name" = 'abi' AND "LoanPayment"."reason"='Loan Auto Repayment' AND DATE("LoanPayment"."collection_date") BETWEEN {{date_from}} AND {{date_to}} ) AS "Account Repaid By Auto Repayments",
+
+    (SELECT SUM(principal_amount + interest_amount + penalty_amount) FROM "LoanPayment" LEFT JOIN "public"."CustomerLoan" ON "public"."LoanPayment"."loan_id" = "CustomerLoan"."id"  
+    WHERE "CustomerLoan"."loan_product_name" = 'abi' AND "LoanPayment"."reason"='Loan Auto Repayment' AND DATE("LoanPayment"."collection_date") BETWEEN {{date_from}} AND {{date_to}} ) AS "Amount Repaid By Auto Repayments"
+
+  
+UNION
+
+SELECT 
+    'Total' AS "Product Type", 
+    
+    (SELECT SUM(principal_amount + interest_amount + penalty_amount) FROM "LoanPayment" LEFT JOIN "public"."CustomerLoan" ON "public"."LoanPayment"."loan_id" = "CustomerLoan"."id"  
+    WHERE DATE("LoanPayment"."collection_date") BETWEEN {{date_from}} AND {{date_to}} ) AS "Total Amount Collected",
+    
+    (SELECT COUNT(*) FROM "LoanPayment" LEFT JOIN "public"."CustomerLoan" ON "public"."LoanPayment"."loan_id" = "CustomerLoan"."id"  
+    WHERE "LoanPayment"."reason"='Loan Repayment' AND DATE("LoanPayment"."collection_date") BETWEEN {{date_from}} AND {{date_to}} ) AS "Accounts Repaid By Customers",
+    
+    (SELECT SUM(principal_amount + interest_amount + penalty_amount) FROM "LoanPayment" LEFT JOIN "public"."CustomerLoan" ON "public"."LoanPayment"."loan_id" = "CustomerLoan"."id"  
+    WHERE "LoanPayment"."reason"='Loan Repayment' AND DATE("LoanPayment"."collection_date") BETWEEN {{date_from}} AND {{date_to}} ) AS "Amount Repaid By Customers",
+
+    (SELECT COUNT(*) FROM "LoanPayment" LEFT JOIN "public"."CustomerLoan" ON "public"."LoanPayment"."loan_id" = "CustomerLoan"."id"  
+    WHERE "LoanPayment"."reason"='Loan Repayment By Officer' AND DATE("LoanPayment"."collection_date") BETWEEN {{date_from}} AND {{date_to}} ) AS "Accounts Repaid By Officers",
+    
+     (SELECT SUM(principal_amount + interest_amount + penalty_amount) FROM "LoanPayment" LEFT JOIN "public"."CustomerLoan" ON "public"."LoanPayment"."loan_id" = "CustomerLoan"."id"  
+    WHERE "LoanPayment"."reason"='Loan Repayment By Officer' AND DATE("LoanPayment"."collection_date") BETWEEN {{date_from}} AND {{date_to}} ) AS "Amount Repaid By Officers",
+    
+    (SELECT COUNT(*) FROM "LoanPayment" LEFT JOIN "public"."CustomerLoan" ON "public"."LoanPayment"."loan_id" = "CustomerLoan"."id"  
+    WHERE "LoanPayment"."reason"='Loan Auto Repayment' AND DATE("LoanPayment"."collection_date") BETWEEN {{date_from}} AND {{date_to}} ) AS "Accounts Repaid By Auto Repayments",
+    
+    (SELECT SUM(principal_amount + interest_amount + penalty_amount) FROM "LoanPayment" LEFT JOIN "public"."CustomerLoan" ON "public"."LoanPayment"."loan_id" = "CustomerLoan"."id"  
+    WHERE "LoanPayment"."reason"='Loan Auto Repayment' AND DATE("LoanPayment"."collection_date") BETWEEN {{date_from}} AND {{date_to}} ) AS "Amount Repaid By Auto Repayments"
+
+    
+    
+    ORDER BY "Total Amount Collected"
+  
